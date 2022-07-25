@@ -2,11 +2,12 @@ import Database from '@ioc:Adonis/Lucid/Database'
 import { userFactory } from 'Database/factories'
 import supertest from 'supertest'
 import test from 'japa'
+import { Assert } from 'japa/build/src/Assert'
 
 const BASE_URL = `http://${process.env.HOST}:${process.env.PORT}`
 
 test.group('User', (group) => {
-  test('it should create an user', async (assert) => {
+  test('Criar Usuário', async (assert) => {
     const userPayload = {
       email: 'test@email.com',
       username: 'test',
@@ -22,7 +23,7 @@ test.group('User', (group) => {
     assert.notExists(body.user.password, userPayload.password)
   })
 
-  test('it should return 409 when email is already in use', async (assert) => {
+  test('Retorna 409 se o email estiver em uso', async (assert) => {
     const { email } = await userFactory.create()
 
     const { body } = await supertest(BASE_URL)
@@ -34,9 +35,38 @@ test.group('User', (group) => {
       })
       .expect(409)
 
+    assert.exists(body.message)
+    assert.exists(body.status)
+    assert.exists(body.code)
     assert.include(body.message, 'email')
     assert.equal(body.code, 'BAD_REQUEST')
     assert.equal(body.status, 409)
+  })
+
+  test('Retornar 409 se o Nome de Usuário estiver em uso', async (assert) => {
+    const { username } = await userFactory.create()
+
+    const { body } = await supertest(BASE_URL)
+      .post('/users')
+      .send({
+        username,
+        email: 'test@email.com',
+        password: 'test123',
+      })
+      .expect(409)
+
+    assert.exists(body.message)
+    assert.exists(body.status)
+    assert.exists(body.code)
+    assert.include(body.message, 'username')
+    assert.equal(body.code, 'BAD_REQUEST')
+    assert.equal(body.status, 409)
+  })
+
+  test.only('Retornar 422 falta os dados obrigatorios', async (assert) => {
+    const body = await supertest(BASE_URL).post('/users').send({}).expect(422)
+    assert.equal(body.code, 'BAD_REQUEST')
+    assert.equal(body.status, 422)
   })
 
   group.beforeEach(async () => {
